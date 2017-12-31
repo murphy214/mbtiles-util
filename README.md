@@ -4,7 +4,7 @@
 
 This project is a few commonly used patterns I use when creating or editing mbtiles files, hopefully by having it all in one place I can simplify my code base a little bit and add abstractions for converting between other file formats. The create / update feature for the mbtiles file format is layer transactional in nature. Meaning every transaction open and commit is for the purposes of creating a new mbtiles and adding a layer or adding a layer to an existing mbtiles file. This pattern works quite well and works for most use cases, and is ideal because no protobuf serialization is necessary everything here is done in raw bytes which is much less cpu and memory intensive. 
 
-The Add_Tile function is wrapped in a mutex as to not offend the sqlite implmentation in go that uses cgo, and single threaded therefore there is no need to worry about adding tiles in go functions becoming a problem.
+The Add_Tile function is wrapped in a mutex as to not offend the sqlite implmentation in go that uses cgo, and single threaded therefore there is no need to worry about adding tiles in go functions becoming a problem. Layer properties could literally be considered or assumed to be any properties value from a geojson feature in your dataset.
 
 # Example
 
