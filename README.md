@@ -14,7 +14,7 @@ The following example shows me creating a test.mbtiles file with the layer "Test
 package main 
 
 import (
-	util "./mbtiles_util"
+	util "github.com/murphy214/mbtiles_util"
 	"fmt"
 	m "github.com/murphy214/mercantile"
 
