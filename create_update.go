@@ -1,0 +1,274 @@
+package mbutil 
+
+import (
+	"fmt"
+	"database/sql"
+	_ "github.com/mattn/go-sqlite3"
+	m "github.com/murphy214/mercantile"
+	"log"
+	//"os"
+	//"math/rand"
+	"sync"
+	"encoding/json"
+	"reflect"
+)
+
+// vector layer json
+type Vector_Layer struct {
+	ID string `json:"id"`
+	Description string `json:"description"`
+	Minzoom int `json:"minzoom"`
+	Maxzoom int `json:"maxzoom"`
+	Fields map[string]string `json:"fields"`
+}
+
+
+type Vector_Layers struct {
+	Vector_Layers []Vector_Layer `json:"vector_layers"`
+}
+
+// mbtiles struct
+type Mbtiles struct {
+	Tx *sql.Tx // Tx
+	Stmt *sql.Stmt // stmt
+	Mutex sync.Mutex // mutex
+	NewBool bool // a new bool for whether or not to add to existing db
+	LayerName string // the layer name currently commiting to
+}
+
+// configuration structure
+type Config struct {
+	FileName string // filename of db
+	Description string // description of layer
+	LayerName string // the first layername to be added
+	LayerProperties map[string]interface{} // an example of the fields or properties
+	MinZoom int // maxzoom
+	MaxZoom int // minzoom
+}
+
+// reflects a tile value back and stuff
+func Reflect_Fields(mymap map[string]interface{}) map[string]string {
+	newmap := map[string]string{}
+	for k,v := range mymap {
+		vv := reflect.ValueOf(v)
+		kd := vv.Kind()
+		if (reflect.Float64 == kd) || (reflect.Float32 == kd) {
+			//fmt.Print(v, "float", k)
+			newmap[k] = "Number"
+			//hash = Hash_Tv(tv)
+		} else if (reflect.Int == kd) || (reflect.Int8 == kd) || (reflect.Int16 == kd) || (reflect.Int32 == kd) || (reflect.Int64 == kd) || (reflect.Uint8 == kd) || (reflect.Uint16 == kd) || (reflect.Uint32 == kd) || (reflect.Uint64 == kd) {
+			//fmt.Print(v, "int", k)
+			newmap[k] = "Number"
+			//hash = Hash_Tv(tv)
+		} else if reflect.String == kd {
+			//fmt.Print(v, "str", k)
+			newmap[k] = "String"
+			//hash = Hash_Tv(tv)
+
+		} else {
+			fmt.Print(k,v,"\n")
+		}
+	}
+	return newmap
+}
+
+// returns the string of the json meta data
+func Make_Json_Meta(config Config,json_meta string) string {
+	// v vector_layers 
+	var vector_layers Vector_Layers
+	_ = json.Unmarshal([]byte(json_meta),&vector_layers)
+
+	layer := Vector_Layer{ID:config.LayerName,Description:"",Minzoom:config.MinZoom,Maxzoom:config.MaxZoom}
+
+	fields := Reflect_Fields(config.LayerProperties)
+	layer.Fields = fields
+
+	vector_layers.Vector_Layers = append(vector_layers.Vector_Layers,layer)
+
+	b,_ := json.Marshal(vector_layers)
+	return string(b)
+}
+
+
+// creates a mbtiles file
+func Create_DB(config Config) Mbtiles {
+	// linting maxzoom
+	if config.MaxZoom == 0 {
+		config.MaxZoom = 20
+	}
+
+	db, err := sql.Open("sqlite3", config.FileName)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// creating tiles table
+	sqlStmt := `
+	CREATE TABLE tiles (zoom_level integer, tile_column integer, tile_row integer, tile_data blob);
+	`
+	_, err = db.Exec(sqlStmt)
+	if err != nil {
+		log.Printf("%q: %s\n", err, sqlStmt)
+	}
+
+	// creating metadata table
+	sqlStmt = `
+	CREATE TABLE metadata (name text, value text);
+	`
+	_, err = db.Exec(sqlStmt)
+	if err != nil {
+		log.Printf("%q: %s\n", err, sqlStmt)
+	}
+
+	// getting metadata and inserting into table
+	values := [][]string{{"name",config.FileName},
+						{"type","overlay"},
+						{"version","2"},
+						{"description",config.Description},
+						{"format","pbf"},
+						{"json",Make_Json_Meta(config,"")},
+					}
+
+	// doing the transaction for meta data
+	tx, err := db.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// metadata stmt
+	stmt, err := tx.Prepare("insert into metadata(value, name) values(?, ?)")
+	if err != nil {
+		log.Fatal(err)
+	}	
+
+	// inserting each metadata value
+	for _,i := range values {
+		_, err = stmt.Exec(i[1],i[0])
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+	tx.Commit()
+
+	// starting the transaction for adding tiles
+	tx, err = db.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// creaitng stmt for tiles
+	stmt, err = tx.Prepare("insert into tiles(zoom_level, tile_column,tile_row,tile_data) values(?, ?, ?, ?)")
+	if err != nil {
+		log.Fatal(err)
+	}
+	var mutex sync.Mutex
+	return  Mbtiles{Tx:tx,Stmt:stmt,Mutex:mutex,NewBool:true}
+}
+
+
+// updates an mbtiles file
+func Update_DB(config Config) Mbtiles {
+	// linting maxzoom
+	if config.MaxZoom == 0 {
+		config.MaxZoom = 20
+	}
+
+	db, err := sql.Open("sqlite3", config.FileName)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// selecting metadata
+	sqlStmt := `
+	select value from metadata where name = "json";
+	`
+	var jsonstring string
+	err = db.QueryRow(sqlStmt).Scan(&jsonstring)
+
+	if err != nil {
+		log.Printf("%q: %s\n", err, sqlStmt)
+	}
+
+	// updating metadata
+	tx, err := db.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	stmt, err := db.Prepare("update metadata set value=? where name=?")
+	if err != nil {
+		log.Fatal(err)
+	}
+	
+	_,err = stmt.Exec(Make_Json_Meta(config,jsonstring),"json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	tx.Commit()
+
+	// starting the transaction for adding tiles
+	tx, err = db.Begin()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// creaitng stmt for tiles
+	stmt, err = tx.Prepare("insert into tiles(zoom_level, tile_column,tile_row,tile_data) values(?, ?, ?, ?)")
+	if err != nil {
+		log.Fatal(err)
+	}
+	var mutex sync.Mutex
+	return  Mbtiles{Tx:tx,Stmt:stmt,Mutex:mutex,NewBool:false}
+
+}
+
+// adds a single tile to sqlite db
+func (mbtiles *Mbtiles) Add_Tile(k m.TileID,bytes []byte) {
+	k.Y = (1 << uint64(k.Z)) - 1 - k.Y 
+	if mbtiles.NewBool == false {
+		mbtiles.Mutex.Lock()
+		var data []byte
+		query := fmt.Sprintf("select tile_data from tiles where zoom_level = %d and tile_column = %d and tile_row = %d",k.Z,k.X,k.Y)
+		err := mbtiles.Tx.QueryRow(query).Scan(&data)
+		mbtiles.Mutex.Unlock()
+		if len(data) > 0 {
+			fmt.Println("hereadsfa")
+			bytes = append(bytes,data...)		
+			mbtiles.Mutex.Lock()	
+			_,err = mbtiles.Tx.Exec(`update tiles set tile_data = ? where zoom_level = ? and tile_column = ? and tile_row = ?`,bytes,k.Z,k.X,k.Y)
+			if err != nil {
+				fmt.Print(err,"\n")		
+			} 
+			mbtiles.Mutex.Unlock()
+		} else {
+			mbtiles.Mutex.Lock()
+			_, err = mbtiles.Stmt.Exec(k.Z,k.X,k.Y,bytes)
+			if err != nil {
+				fmt.Println(err)
+			}
+			mbtiles.Mutex.Unlock()
+		}
+	} else {
+		mbtiles.Mutex.Lock()
+		_, err := mbtiles.Stmt.Exec(k.Z,k.X,k.Y,bytes)
+		if err != nil {
+			fmt.Println(err)
+		}
+		mbtiles.Mutex.Unlock()
+
+	}
+
+}
+
+// commiting and updating index
+func (mbtiles *Mbtiles) Commit() {
+	sqlStmt := `
+	CREATE UNIQUE INDEX IF NOT EXISTS tile_index on tiles (zoom_level, tile_column, tile_row)
+	`
+	_, err := mbtiles.Tx.Exec(sqlStmt)
+	if err != nil {
+		fmt.Print(err,"\n")
+
+	}
+	mbtiles.Tx.Commit()
+}
