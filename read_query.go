@@ -9,6 +9,7 @@ import (
 	"log"
 	//"os"
 	"sync"
+	"github.com/paulmach/go.geojson"
 )
 
 // given a filename gets a filename structure to read 
@@ -39,4 +40,20 @@ func (mbtiles *Mbtiles) Query(k m.TileID) []byte {
 	}
 	mbtiles.Mutex.Unlock()
 	return data
+}	
+
+
+// queries a given tileid
+func (mbtiles *Mbtiles) Query_Features(k m.TileID) []*geojson.Feature {
+	og := k
+	k.Y = (1 << uint64(k.Z)) - 1 - k.Y 
+	mbtiles.Mutex.Lock()
+	var data []byte
+	err := mbtiles.Tx.QueryRow("select tile_data from tiles where zoom_level = ? and tile_column = ? and tile_row = ?",k.Z,k.X,k.Y).Scan(&data)
+	if err != nil {
+		fmt.Println(err)
+	}
+	mbtiles.Mutex.Unlock()
+
+	return Convert_Vt_Bytes(data,og)
 }	

@@ -232,7 +232,6 @@ func (mbtiles *Mbtiles) Add_Tile(k m.TileID,bytes []byte) {
 		err := mbtiles.Tx.QueryRow(query).Scan(&data)
 		mbtiles.Mutex.Unlock()
 		if len(data) > 0 {
-			fmt.Println("hereadsfa")
 			bytes = append(bytes,data...)		
 			mbtiles.Mutex.Lock()	
 			_,err = mbtiles.Tx.Exec(`update tiles set tile_data = ? where zoom_level = ? and tile_column = ? and tile_row = ?`,bytes,k.Z,k.X,k.Y)
