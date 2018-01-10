@@ -6,6 +6,19 @@ This project is a few commonly used patterns I use when creating or editing mbti
 
 The Add_Tile function is wrapped in a mutex as to not offend the sqlite implmentation in go that uses cgo, and single threaded therefore there is no need to worry about adding tiles in go functions becoming a problem. Layer properties could literally be considered or assumed to be any properties value from a geojson feature in your dataset.
 
+# Update: Added Query Features method 
+
+Today I added the Query_Features method to the main structure so now one can go:
+
+```golang
+feats := mbtile.Query_Features(m.TileID{4,6,4})
+```
+
+Whats awesome about this is it doesn't just return the vector_tile features within that tile it returns valid geojson with the correct geometries and properties. This feature took me exactly 2h52m43s58 to implement becaue I timed myself of course its probably really buggy as well. 
+
+
+
+
 # Example
 
 The following example shows me creating a test.mbtiles file with the layer "Test". Then updating the test.mbtiles file with "Test2" layer, finally showing how to use the query feature as well. Nothing to crazy. 
