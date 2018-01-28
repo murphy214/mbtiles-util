@@ -188,18 +188,18 @@ func Make_Key_Value_Map(values []*vector_tile.Tile_Value,keys []string) (map[int
 
 
 // returns a list of features associated with each vector tile
-func Convert_Vt_Bytes(bytevals []byte,tileid m.TileID) []*geojson.Feature {
+func Convert_Vt_Bytes(bytevals []byte,tileid m.TileID) map[string][]*geojson.Feature {
 	tile := &vector_tile.Tile{}
 	if err := proto.Unmarshal(bytevals, tile); err != nil {
 		fmt.Println(err)
 	}	
 
 	converter := New_Point_Convert(tileid)
-
-	newfeats := []*geojson.Feature{}
+	newmap := map[string][]*geojson.Feature{}
 	for _,layer := range tile.Layers {
 		// getting value and key map
 		valuemap,keymap := Make_Key_Value_Map(layer.Values,layer.Keys)
+		newfeats := []*geojson.Feature{}
 		
 		// making channel
 		c := make(chan *geojson.Feature)
@@ -232,7 +232,9 @@ func Convert_Vt_Bytes(bytevals []byte,tileid m.TileID) []*geojson.Feature {
 			newfeats = append(newfeats,<-c)
 		}
 
+		newmap[*layer.Name] = newfeats
+
 
 	}
-	return newfeats
+	return newmap
 }

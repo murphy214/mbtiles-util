@@ -34,6 +34,9 @@ type Mbtiles struct {
 	Mutex sync.Mutex // mutex
 	NewBool bool // a new bool for whether or not to add to existing db
 	LayerName string // the layer name currently commiting to
+	Geobuf bool // a bool for whether or a byte array is a geobuf
+	Total int // the total number of tiles iterated through
+	Old_Total int // the oldtotal
 }
 
 // configuration structure
@@ -44,6 +47,7 @@ type Config struct {
 	LayerProperties map[string]interface{} // an example of the fields or properties
 	MinZoom int // maxzoom
 	MaxZoom int // minzoom
+	Geobuf bool // a geobuf bool
 }
 
 // reflects a tile value back and stuff
@@ -162,7 +166,7 @@ func Create_DB(config Config) Mbtiles {
 		log.Fatal(err)
 	}
 	var mutex sync.Mutex
-	return  Mbtiles{Tx:tx,Stmt:stmt,Mutex:mutex,NewBool:true}
+	return  Mbtiles{Tx:tx,Stmt:stmt,Mutex:mutex,NewBool:true,Geobuf:config.Geobuf,Old_Total:-1}
 }
 
 
@@ -218,7 +222,7 @@ func Update_DB(config Config) Mbtiles {
 		log.Fatal(err)
 	}
 	var mutex sync.Mutex
-	return  Mbtiles{Tx:tx,Stmt:stmt,Mutex:mutex,NewBool:false}
+	return  Mbtiles{Tx:tx,Stmt:stmt,Mutex:mutex,NewBool:false,Geobuf:config.Geobuf,Old_Total:-1}
 
 }
 
@@ -258,6 +262,19 @@ func (mbtiles *Mbtiles) Add_Tile(k m.TileID,bytes []byte) {
 	}
 
 }
+
+// replaces a single tile to sqlite db
+func (mbtiles *Mbtiles) Replace_Tile(k m.TileID,bytes []byte) {
+	k.Y = (1 << uint64(k.Z)) - 1 - k.Y 
+	mbtiles.Mutex.Lock()	
+	_,err := mbtiles.Tx.Exec(`update tiles set tile_data = ? where zoom_level = ? and tile_column = ? and tile_row = ?`,bytes,k.Z,k.X,k.Y)
+	if err != nil {
+		fmt.Print(err,"\n")		
+	} 
+	mbtiles.Mutex.Unlock()
+}
+
+
 
 // commiting and updating index
 func (mbtiles *Mbtiles) Commit() {
