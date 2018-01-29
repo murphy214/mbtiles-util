@@ -24,14 +24,18 @@ func (converter *Point_Convert) Convert_XY(xy []int) []float64 {
 }
 
 // brute force converts all points in an int alignment
-func (converter *Point_Convert) Convert_Coords(coords [][][]int) [][][]float64 {
-	total := [][][]float64{}
-	for _,cont := range coords {
-		newline := [][]float64{}	
-		for _,pt := range cont {
-			newline = append(newline,converter.Convert_XY(pt))
+func (converter *Point_Convert) Convert_Coords(coords [][][][]int) [][][][]float64 {
+	total := [][][][]float64{}
+	for _,polygon := range coords {
+		newpolygon := [][][]float64{}
+		for _,cont := range polygon {
+			newline := [][]float64{}	
+			for _,pt := range cont {
+				newline = append(newline,converter.Convert_XY(pt))
+			}
+			newpolygon = append(newpolygon,newline)
 		}
-		total = append(total,newline)
+		total = append(total,newpolygon)
 	}
 	return total
 }
@@ -95,6 +99,176 @@ func Get_Command_Length(cmdLen uint32) (int32,int32) {
 
     return int32(cmd),int32(length)
 }
+
+// decoding point
+func Decode_Point(geom []uint32) [][]int {
+	pos := 0
+	firstpt,currentpt := []int{},[]int{}
+	boolval := false
+	newline := [][]int{}
+	for pos < len(geom) {
+		// getting geometry
+		geomval := geom[pos]
+		cmd,length := Get_Command_Length(geomval)
+
+		// processing either multi geometry or single geometry
+		if cmd == 1 && length == 1 && boolval == false {
+			xdelta := DecodeDelta(geom[pos+1])
+			ydelta := DecodeDelta(geom[pos+2])
+			firstpt = []int{xdelta,ydelta}
+			currentpt = firstpt
+			boolval = true
+			newline = append(newline,firstpt)
+
+		} else if cmd == 1 {
+			count := 1
+			xdelta := DecodeDelta(geom[pos+1])
+			ydelta := DecodeDelta(geom[pos+2])
+			firstpt = []int{xdelta,ydelta}
+			currentpt = firstpt
+			newline = append(newline,currentpt)
+			pos += 2
+			for count < int(length) {
+				xdelta := DecodeDelta(geom[pos+1])
+				ydelta := DecodeDelta(geom[pos+2])
+				currentpt = []int{currentpt[0] + xdelta,currentpt[1] + ydelta}
+				newline = append(newline,currentpt)
+				pos += 2
+				count += 1
+			}
+		}
+		pos += 1
+	}
+	return newline
+}
+
+
+// decodes a given simple geometry
+// returns it as an arbitary set of given lines
+func Decode_Line(geom []uint32) [][][]int {
+	pos := 0
+	currentpt := []int{0,0}
+	newline := [][]int{}
+	lines := [][][]int{}
+	for pos < len(geom) {
+		geomval := geom[pos]
+
+		cmd,length := Get_Command_Length(geomval)
+
+		// conde for a move to cmd
+		if cmd == 1 {
+			xdelta := DecodeDelta(geom[pos+1])
+			ydelta := DecodeDelta(geom[pos+2])
+			currentpt = []int{currentpt[0] + xdelta,currentpt[1] + ydelta}
+			pos += 2
+
+			if pos == len(geom) - 1 {
+				lines = append(lines,[][]int{currentpt})
+			}
+		} else if cmd == 2 {
+			newline = [][]int{currentpt}
+			currentpos := pos + 1
+			endpos := currentpos + int(length * 2)
+			for currentpos < endpos {
+				xdelta := DecodeDelta(geom[currentpos])
+				ydelta := DecodeDelta(geom[currentpos+1])
+				currentpt = []int{currentpt[0] + xdelta,currentpt[1] + ydelta}
+				newline = append(newline,currentpt)
+				currentpos += 2
+			}
+
+			pos = currentpos - 1
+			lines = append(lines,newline)
+
+		}
+		newline = [][]int{}
+		//fmt.Println(cmd,length)
+		pos += 1
+	}
+	return lines
+}
+
+// returns a bool on whether this is an exterior ring or not
+func Exterior_Ring(coord [][]int) bool {
+	count := 0
+	firstpt := coord[0]
+	weight := 0.0
+	var oldpt []int
+	for _, pt := range coord {
+		if count == 0 {
+			count = 1
+		} else {
+			weight += float64((pt[0] - oldpt[0]) * (pt[1] + oldpt[1]))
+		}
+		oldpt = pt
+	}
+
+	weight += float64((firstpt[0] - oldpt[0]) * (firstpt[1] + oldpt[1]))
+	return weight > 0
+}
+
+
+// decodes a given simple geometry
+// returns it as an arbitary set of given lines
+func Decode_Polygon(geom []uint32) [][][][]int {
+	pos := 0
+	currentpt := []int{0,0}
+	newline := [][]int{}
+	polygons := [][][][]int{}
+	for pos < len(geom) {
+		geomval := geom[pos]
+
+		cmd,length := Get_Command_Length(geomval)
+
+		// conde for a move to cmd
+		if cmd == 1 {
+			xdelta := DecodeDelta(geom[pos+1])
+			ydelta := DecodeDelta(geom[pos+2])
+			currentpt = []int{currentpt[0] + xdelta,currentpt[1] + ydelta}
+			//fmt.Println(firstpt)
+			pos += 2
+
+
+		} else if cmd == 2 {
+			newline = [][]int{currentpt}
+			currentpos := pos + 1
+			endpos := currentpos + int(length * 2)
+			for currentpos < endpos {
+				xdelta := DecodeDelta(geom[currentpos])
+				ydelta := DecodeDelta(geom[currentpos+1])
+				currentpt = []int{currentpt[0] + xdelta,currentpt[1] + ydelta}
+				newline = append(newline,currentpt)
+				currentpos += 2
+			}
+
+			pos = currentpos - 1
+
+		} else if cmd == 7 {
+			newline = append(newline,newline[0])
+			if Exterior_Ring(newline) == false {
+				polygons = append(polygons,[][][]int{newline})
+				newline = [][]int{}
+			} else {
+				if len(polygons) == 0 {
+					polygons = append(polygons,[][][]int{newline})
+
+				} else {
+					polygons[len(polygons)-1] = append(polygons[len(polygons)-1],newline)
+
+				}
+				newline = [][]int{}
+			}
+
+		}
+
+		//fmt.Println(cmd,length)
+		pos += 1
+	}
+
+
+	return polygons
+}
+
 
 // decodes a given simple geometry
 // returns it as an arbitary set of given lines
@@ -186,6 +360,28 @@ func Make_Key_Value_Map(values []*vector_tile.Tile_Value,keys []string) (map[int
 	return valuemap,keymap
 }
 
+// function to decode an entire set of geometries and return a list of geoms
+func Decode_Geometry(feat_type vector_tile.Tile_GeomType,geom []uint32,converter Point_Convert) []*geojson.Geometry {
+	geoms := []*geojson.Geometry{}
+	if feat_type == vector_tile.Tile_POLYGON {
+		coords := converter.Convert_Coords(Decode_Polygon(geom))
+		for _,polygon := range coords {
+			geoms = append(geoms,&geojson.Geometry{Type:"Polygon",Polygon:polygon})
+		}
+	} else if feat_type == vector_tile.Tile_LINESTRING {
+		coords := converter.Convert_Coords([][][][]int{Decode_Line(geom)})
+		for _,line := range coords[0] {
+			geoms = append(geoms,&geojson.Geometry{Type:"LineString",LineString:line})
+		}
+	} else if feat_type == vector_tile.Tile_POINT {
+		coords := converter.Convert_Coords([][][][]int{[][][]int{Decode_Point(geom)}})
+		for _,point := range coords[0][0] {
+			geoms = append(geoms,&geojson.Geometry{Type:"Point",Point:point})
+		}
+	}
+	return geoms
+}
+
 
 // returns a list of features associated with each vector tile
 func Convert_Vt_Bytes(bytevals []byte,tileid m.TileID) map[string][]*geojson.Feature {
@@ -202,11 +398,13 @@ func Convert_Vt_Bytes(bytevals []byte,tileid m.TileID) map[string][]*geojson.Fea
 		newfeats := []*geojson.Feature{}
 		
 		// making channel
-		c := make(chan *geojson.Feature)
+		c := make(chan []*geojson.Feature)
 
 		//converting coordinates
 		for _,feat := range layer.Features {
-			go func(feat *vector_tile.Tile_Feature, c chan *geojson.Feature) {
+			go func(feat *vector_tile.Tile_Feature, c chan []*geojson.Feature) {
+				geoms := Decode_Geometry(*feat.Type,feat.Geometry,converter)
+				/*
 				var geom *geojson.Geometry
 				coords := converter.Convert_Coords(DecodeGeometry(feat.Geometry))
 				if *feat.Type == vector_tile.Tile_POLYGON {
@@ -216,20 +414,25 @@ func Convert_Vt_Bytes(bytevals []byte,tileid m.TileID) map[string][]*geojson.Fea
 				} else if *feat.Type == vector_tile.Tile_POINT {
 					geom = &geojson.Geometry{Point:coords[0][0],Type:"Point"}
 				} 
-
+				*/
 				properties := map[string]interface{}{}
 				count := 0
 				for count < len(feat.Tags) {
 					properties[keymap[count]] = valuemap[count+1]
 					count += 2
 				}
+				tempfeats := []*geojson.Feature{}
+				for _,geom := range geoms { 
+					tempfeats = append(tempfeats,&geojson.Feature{ID:feat.Id,Geometry:geom,Properties:properties})
+				}
 
-				c <- &geojson.Feature{ID:feat.Id,Geometry:geom,Properties:properties}
+
+				c <- tempfeats
 			}(feat,c)
 		}
 
 		for range layer.Features {
-			newfeats = append(newfeats,<-c)
+			newfeats = append(newfeats,<-c...)
 		}
 
 		newmap[*layer.Name] = newfeats

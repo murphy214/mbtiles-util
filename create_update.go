@@ -37,6 +37,9 @@ type Mbtiles struct {
 	Geobuf bool // a bool for whether or a byte array is a geobuf
 	Total int // the total number of tiles iterated through
 	Old_Total int // the oldtotal
+	FileName string
+	MinZoom int 
+	MaxZoom int
 }
 
 // configuration structure
@@ -166,7 +169,17 @@ func Create_DB(config Config) Mbtiles {
 		log.Fatal(err)
 	}
 	var mutex sync.Mutex
-	return  Mbtiles{Tx:tx,Stmt:stmt,Mutex:mutex,NewBool:true,Geobuf:config.Geobuf,Old_Total:-1}
+	mb := Mbtiles{Tx:tx,
+				Stmt:stmt,
+				Mutex:mutex,
+				NewBool:true,
+				Geobuf:config.Geobuf,
+				Old_Total:-1,
+				FileName:config.FileName,
+				MinZoom:config.MinZoom,
+				MaxZoom:config.MaxZoom,
+			}
+	return mb
 }
 
 
@@ -222,8 +235,17 @@ func Update_DB(config Config) Mbtiles {
 		log.Fatal(err)
 	}
 	var mutex sync.Mutex
-	return  Mbtiles{Tx:tx,Stmt:stmt,Mutex:mutex,NewBool:false,Geobuf:config.Geobuf,Old_Total:-1}
-
+	mb := Mbtiles{Tx:tx,
+				Stmt:stmt,
+				Mutex:mutex,
+				NewBool:false,
+				Geobuf:config.Geobuf,
+				Old_Total:-1,
+				FileName:config.FileName,
+				MinZoom:config.MinZoom,
+				MaxZoom:config.MaxZoom,
+			}
+	return mb
 }
 
 // adds a single tile to sqlite db
@@ -272,6 +294,45 @@ func (mbtiles *Mbtiles) Replace_Tile(k m.TileID,bytes []byte) {
 		fmt.Print(err,"\n")		
 	} 
 	mbtiles.Mutex.Unlock()
+}
+
+// getting min and maxzoom from metadata
+func (mbtiles *Mbtiles) Get_Min_Max_Zoom() (int,int) {
+	// selecting metadata
+	sqlStmt := `
+	select value from metadata where name = "json";
+	`
+	var jsonstring string
+	err := mbtiles.Tx.QueryRow(sqlStmt).Scan(&jsonstring)
+
+	if err != nil {
+		log.Printf("%q: %s\n", err, sqlStmt)
+	}
+
+	// unmarshalling json metadata
+	var vector_layers Vector_Layers
+	_ = json.Unmarshal([]byte(jsonstring),&vector_layers)
+	var minzoom,maxzoom int
+	minzoom = 20 
+	maxzoom = 0 
+	for _,layer := range vector_layers.Vector_Layers {
+		tmpmin,tmpmax := layer.Minzoom,layer.Maxzoom
+		if tmpmin < minzoom {
+			minzoom = tmpmin
+		}
+		if tmpmax > maxzoom {
+			maxzoom = tmpmax
+		}
+	}
+
+	// setting defaults if given
+	if minzoom == 20 {
+		minzoom = 0
+	} 
+	if maxzoom == 0 {
+		maxzoom = 20
+	}
+	return minzoom,maxzoom
 }
 
 

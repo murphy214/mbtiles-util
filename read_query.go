@@ -27,7 +27,15 @@ func Read_Mbtiles(filename string) Mbtiles {
 	}
 
 	var mutex sync.Mutex
-	return  Mbtiles{Tx:tx,Mutex:mutex,NewBool:false,Old_Total:-1}
+	mb := Mbtiles{Tx:tx,
+				Mutex:mutex,
+				NewBool:false,
+				Old_Total:-1,
+				FileName:filename}
+	minzoom,maxzoom := mb.Get_Min_Max_Zoom()
+	mb.MinZoom = minzoom
+	mb.MaxZoom = maxzoom
+	return mb
 
 }
 
