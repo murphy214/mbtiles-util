@@ -244,7 +244,7 @@ func Decode_Polygon(geom []uint32) [][][][]int {
 			pos = currentpos - 1
 
 		} else if cmd == 7 {
-			newline = append(newline,newline[0])
+			//newline = append(newline,newline[0])
 			if Exterior_Ring(newline) == false {
 				polygons = append(polygons,[][][]int{newline})
 				newline = [][]int{}
@@ -264,7 +264,6 @@ func Decode_Polygon(geom []uint32) [][][][]int {
 		//fmt.Println(cmd,length)
 		pos += 1
 	}
-
 
 	return polygons
 }
@@ -382,6 +381,50 @@ func Decode_Geometry(feat_type vector_tile.Tile_GeomType,geom []uint32,converter
 	return geoms
 }
 
+func Convert_Offset(coords [][][][]int,k m.TileID) [][][][]int {
+	///k.Y = (1 << uint64(k.Z)) - 1 - k.Y 
+	//offsety := k.Y * 4096
+	//offsetx := k.X * 4096
+	for polygoni := range coords {
+		for conti := range coords[polygoni] {
+			for pti := range coords[polygoni][conti] {
+				pt := coords[polygoni][conti][pti]
+				pt[0] = pt[0] >> 8
+				pt[1] = pt[1] >> 8
+				//pt[0] = int(math.Sqrt(float64(pt[0])))
+				//pt[1] = int(math.Sqrt(float64(pt[1])))
+				coords[polygoni][conti][pti] = pt 
+			} 
+		}
+
+	}
+	//fmt.Println(coords)
+	return coords
+}
+
+
+
+// function to decode an entire set of geometries and return a list of geoms
+func Decode_Geometry2(feat_type vector_tile.Tile_GeomType,geom []uint32,converter Point_Convert,k m.TileID) []*geojson.Geometry {
+	geoms := []*geojson.Geometry{}
+	if feat_type == vector_tile.Tile_POLYGON {
+		coords := converter.Convert_Coords(Convert_Offset(Decode_Polygon(geom),k))
+		for _,polygon := range coords {
+			geoms = append(geoms,&geojson.Geometry{Type:"Polygon",Polygon:polygon})
+		}
+	} else if feat_type == vector_tile.Tile_LINESTRING {
+		coords := converter.Convert_Coords(Convert_Offset([][][][]int{Decode_Line(geom)},k))
+		for _,line := range coords[0] {
+			geoms = append(geoms,&geojson.Geometry{Type:"LineString",LineString:line})
+		}
+	} else if feat_type == vector_tile.Tile_POINT {
+		coords := converter.Convert_Coords(Convert_Offset([][][][]int{[][][]int{Decode_Point(geom)}},k))
+		for _,point := range coords[0][0] {
+			geoms = append(geoms,&geojson.Geometry{Type:"Point",Point:point})
+		}
+	}
+	return geoms
+}
 
 // returns a list of features associated with each vector tile
 func Convert_Vt_Bytes(bytevals []byte,tileid m.TileID) map[string][]*geojson.Feature {
@@ -404,6 +447,66 @@ func Convert_Vt_Bytes(bytevals []byte,tileid m.TileID) map[string][]*geojson.Fea
 		for _,feat := range layer.Features {
 			go func(feat *vector_tile.Tile_Feature, c chan []*geojson.Feature) {
 				geoms := Decode_Geometry(*feat.Type,feat.Geometry,converter)
+				/*
+				var geom *geojson.Geometry
+				coords := converter.Convert_Coords(DecodeGeometry(feat.Geometry))
+				if *feat.Type == vector_tile.Tile_POLYGON {
+					geom = &geojson.Geometry{Polygon:coords,Type:"Polygon"}
+				} else if *feat.Type == vector_tile.Tile_LINESTRING {
+					geom = &geojson.Geometry{LineString:coords[0],Type:"LineString"}
+				} else if *feat.Type == vector_tile.Tile_POINT {
+					geom = &geojson.Geometry{Point:coords[0][0],Type:"Point"}
+				} 
+				*/
+				properties := map[string]interface{}{}
+				count := 0
+				for count < len(feat.Tags) {
+					properties[keymap[count]] = valuemap[count+1]
+					count += 2
+				}
+				tempfeats := []*geojson.Feature{}
+				for _,geom := range geoms { 
+					tempfeats = append(tempfeats,&geojson.Feature{ID:feat.Id,Geometry:geom,Properties:properties})
+				}
+
+
+				c <- tempfeats
+			}(feat,c)
+		}
+
+		for range layer.Features {
+			newfeats = append(newfeats,<-c...)
+		}
+
+		newmap[*layer.Name] = newfeats
+
+
+	}
+	return newmap
+}
+
+
+// returns a list of features associated with each vector tile
+func Convert_Vt_Bytes2(bytevals []byte,tileid m.TileID) map[string][]*geojson.Feature {
+	tile := &vector_tile.Tile{}
+	if err := proto.Unmarshal(bytevals, tile); err != nil {
+		fmt.Println(err)
+	}	
+
+	converter := New_Point_Convert(tileid)
+	newmap := map[string][]*geojson.Feature{}
+	for _,layer := range tile.Layers {
+		// getting value and key map
+		valuemap,keymap := Make_Key_Value_Map(layer.Values,layer.Keys)
+		newfeats := []*geojson.Feature{}
+		
+		// making channel
+		c := make(chan []*geojson.Feature)
+
+		//converting coordinates
+		for _,feat := range layer.Features {
+			go func(feat *vector_tile.Tile_Feature, c chan []*geojson.Feature) {
+				geoms := Decode_Geometry2(*feat.Type,feat.Geometry,converter,tileid)
 				/*
 				var geom *geojson.Geometry
 				coords := converter.Convert_Coords(DecodeGeometry(feat.Geometry))
