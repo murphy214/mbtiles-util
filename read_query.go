@@ -10,8 +10,6 @@ import (
 	//"os"
 	"sync"
 	"github.com/paulmach/go.geojson"
-	g "github.com/murphy214/geobuf"
-
 )
 
 // given a filename gets a filename structure to read 
@@ -64,11 +62,7 @@ func (mbtiles *Mbtiles) Query_Features(k m.TileID) map[string][]*geojson.Feature
 		//fmt.Println(err)
 	}
 	mbtiles.Mutex.Unlock()
-	if mbtiles.Geobuf == false {
-		return Convert_Vt_Bytes(data,og)
-	} else {
-		return map[string][]*geojson.Feature{"geobuf":g.Read_FeatureCollection(data)}
-	}
+	return Convert_Vt_Bytes(data,og)
 }
 
 // function for getting the next value

@@ -348,4 +348,6 @@ func (mbtiles *Mbtiles) Commit() {
 
 	}
 	mbtiles.Tx.Commit()
+	mbtiles.Stmt.Close()
+
 }
