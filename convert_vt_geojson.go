@@ -449,7 +449,7 @@ func Convert_Vt_Bytes(bytevals []byte, tileid m.TileID) map[string][]*geojson.Fe
 	for _, layer := range tile.Layers {
 		// getting value and key map
 		valuemap, keymap := Make_Key_Value_Map(layer.Values, layer.Keys)
-		fmt.Println(valuemap, keymap)
+		//fmt.Println(valuemap, keymap)
 
 		newfeats := []*geojson.Feature{}
 

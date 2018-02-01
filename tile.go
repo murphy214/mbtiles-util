@@ -148,13 +148,13 @@ func (prop *Properties_Config) Update_Properties(properties map[string]interface
 
 // makes a single tile for a given polygon
 // this function maps a geojson ld tile to a vector-tile
-func (mbutil *Mbtiles) Make_Tile(tileid m.TileID,stringval string) {
+func (mbutil *Mbtiles) Make_Tile(tileid m.TileID,stringval string) []byte {
 	// getitng featuerstr
 	features_str := ld.Split_Features(stringval)
 
-	if len(features_str) > 1000000000 {
+	if len(features_str) > 	10 {
 		//fmt.Println("concurrent")
-		mbutil.Make_Tile_Concurrent(tileid,features_str)
+		return mbutil.Make_Tile_Concurrent(tileid,features_str)
 	} else {
 
 		// intializing shit for cursor
@@ -223,7 +223,7 @@ func (mbutil *Mbtiles) Make_Tile(tileid m.TileID,stringval string) {
 			layerVersion := uint32(15)
 			extent := vector_tile.Default_Tile_Layer_Extent
 			//var bound []Bounds
-			layername := "Test"
+			layername := mbutil.LayerName
 			layer := vector_tile.Tile_Layer{
 				Version:  &layerVersion,
 				Name:     &layername,
@@ -242,14 +242,15 @@ func (mbutil *Mbtiles) Make_Tile(tileid m.TileID,stringval string) {
 		} else {
 			bytevals = []byte{}
 		}
-		mbutil.Replace_Tile(tileid,bytevals)
+		return bytevals
 	}
+	return []byte{}
 }
 
 
 // makes a single tile for a given polygon
 // this function  is callled from within Make_Tile
-func (mbutil Mbtiles) Make_Tile_Concurrent(tileid m.TileID,features_str []string) {
+func (mbutil Mbtiles) Make_Tile_Concurrent(tileid m.TileID,features_str []string) []byte {
 	// intializing shit for cursor
 	bound := m.Bounds(tileid)
 	deltax := bound.E-bound.W
@@ -317,7 +318,7 @@ func (mbutil Mbtiles) Make_Tile_Concurrent(tileid m.TileID,features_str []string
 	layerVersion := uint32(15)
 	extent := vector_tile.Default_Tile_Layer_Extent
 	//var bound []Bounds
-	layername := "Test"
+	layername := mbutil.LayerName
 	layer := vector_tile.Tile_Layer{
 		Version:  &layerVersion,
 		Name:     &layername,
@@ -329,7 +330,7 @@ func (mbutil Mbtiles) Make_Tile_Concurrent(tileid m.TileID,features_str []string
 	tile := vector_tile.Tile{}
 	tile.Layers = append(tile.Layers, &layer)
 	bytevals,_ = proto.Marshal(&tile)
-	mbutil.Replace_Tile(tileid,bytevals)	
+	return bytevals
 }
 
 // makes a single tile for a given polygon
@@ -337,7 +338,7 @@ func (mbutil Mbtiles) Make_Tile_Concurrent(tileid m.TileID,features_str []string
 func (mbutil *Mbtiles) Make_Tile_Geojson(tileid m.TileID,features_str []*geojson.Feature) {
 	// getitng featuerstr
 
-	if len(features_str) > 1000000000000 {
+	if len(features_str) > 10 {
 		//fmt.Println("concurrent")
 		mbutil.Make_Tile_Geojson_Concurrent(tileid,features_str)
 	} else {
@@ -407,7 +408,7 @@ func (mbutil *Mbtiles) Make_Tile_Geojson(tileid m.TileID,features_str []*geojson
 			layerVersion := uint32(15)
 			extent := vector_tile.Default_Tile_Layer_Extent
 			//var bound []Bounds
-			layername := "Test"
+			layername := mbutil.LayerName
 			layer := vector_tile.Tile_Layer{
 				Version:  &layerVersion,
 				Name:     &layername,
@@ -503,7 +504,7 @@ func (mbutil Mbtiles) Make_Tile_Geojson_Concurrent(tileid m.TileID,features_str 
 	layerVersion := uint32(15)
 	extent := vector_tile.Default_Tile_Layer_Extent
 	//var bound []Bounds
-	layername := "Test"
+	layername := mbutil.LayerName
 	layer := vector_tile.Tile_Layer{
 		Version:  &layerVersion,
 		Name:     &layername,

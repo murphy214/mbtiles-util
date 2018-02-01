@@ -178,6 +178,7 @@ func Create_DB(config Config) Mbtiles {
 				FileName:config.FileName,
 				MinZoom:config.MinZoom,
 				MaxZoom:config.MaxZoom,
+				LayerName:config.LayerName,
 			}
 	return mb
 }
@@ -244,6 +245,7 @@ func Update_DB(config Config) Mbtiles {
 				FileName:config.FileName,
 				MinZoom:config.MinZoom,
 				MaxZoom:config.MaxZoom,
+				LayerName:config.LayerName,
 			}
 	return mb
 }
