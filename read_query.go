@@ -150,3 +150,32 @@ func (mbtiles *Mbtiles) Chunk_Tiles_Zoom(limit int,zoom int) map[m.TileID][]byte
 	return mymap
 }
 
+
+// map query 
+func (mbtiles *Mbtiles) Get_One_Tile() (m.TileID,[]byte) {
+	rows,err := mbtiles.Tx.Query("SELECT tile_column,tile_row,zoom_level,tile_data FROM tiles limit ?,?",mbtiles.Total,mbtiles.Total+1)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// mapping to a specific tileid 
+	mymap := []m.TileID{}
+	step := 0
+	for rows.Next() {
+		var x,y,z int
+		var data []byte
+
+		rows.Scan(&x,&y,&z,&data)
+		y = (1 << uint64(z)) - y - 1
+		tileid := m.TileID{int64(x),int64(y),uint64(z)}
+		mymap = append(mymap,tileid)
+		step += 1
+	}
+
+	tileid := mymap[0]
+	bytevals := mbtiles.Query(tileid)
+	mbtiles.Total += 1
+
+	return tileid,bytevals
+}
+

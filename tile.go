@@ -152,7 +152,7 @@ func (mbutil *Mbtiles) Make_Tile(tileid m.TileID,stringval string) []byte {
 	// getitng featuerstr
 	features_str := ld.Split_Features(stringval)
 
-	if len(features_str) > 	10 {
+	if len(features_str) > 	1000000000 {
 		//fmt.Println("concurrent")
 		return mbutil.Make_Tile_Concurrent(tileid,features_str)
 	} else {
@@ -338,7 +338,7 @@ func (mbutil Mbtiles) Make_Tile_Concurrent(tileid m.TileID,features_str []string
 func (mbutil *Mbtiles) Make_Tile_Geojson(tileid m.TileID,features_str []*geojson.Feature) {
 	// getitng featuerstr
 
-	if len(features_str) > 10 {
+	if len(features_str) > 100000000 {
 		//fmt.Println("concurrent")
 		mbutil.Make_Tile_Geojson_Concurrent(tileid,features_str)
 	} else {

@@ -139,20 +139,25 @@ func Decode_Point(geom []uint32) [][]int {
 
 		} else if cmd == 1 {
 			count := 1
-			xdelta := DecodeDelta(geom[pos+1])
-			ydelta := DecodeDelta(geom[pos+2])
-			firstpt = []int{xdelta, ydelta}
-			currentpt = firstpt
-			newline = append(newline, currentpt)
-			pos += 2
-			for count < int(length) {
+			if len(geom) > pos + 2 {
 				xdelta := DecodeDelta(geom[pos+1])
 				ydelta := DecodeDelta(geom[pos+2])
-				currentpt = []int{currentpt[0] + xdelta, currentpt[1] + ydelta}
+				firstpt = []int{xdelta, ydelta}
+				currentpt = firstpt
 				newline = append(newline, currentpt)
 				pos += 2
-				count += 1
+				for count < int(length) {
+					xdelta := DecodeDelta(geom[pos+1])
+					ydelta := DecodeDelta(geom[pos+2])
+					currentpt = []int{currentpt[0] + xdelta, currentpt[1] + ydelta}
+					newline = append(newline, currentpt)
+					pos += 2
+					count += 1
+				}
+			} else {
+				
 			}
+
 		}
 		pos += 1
 	}
@@ -448,7 +453,7 @@ func Convert_Vt_Bytes(bytevals []byte, tileid m.TileID) map[string][]*geojson.Fe
 	newmap := map[string][]*geojson.Feature{}
 	for _, layer := range tile.Layers {
 		// getting value and key map
-		valuemap, keymap := Make_Key_Value_Map(layer.Values, layer.Keys)
+		//valuemap, keymap := Make_Key_Value_Map(layer.Values, layer.Keys)
 		//fmt.Println(valuemap, keymap)
 
 		newfeats := []*geojson.Feature{}
@@ -474,10 +479,17 @@ func Convert_Vt_Bytes(bytevals []byte, tileid m.TileID) map[string][]*geojson.Fe
 				properties := map[string]interface{}{}
 				count := 0
 				for count < len(feat.Tags) {
-					keyid := int(feat.Tags[count])
-					valueid := int(feat.Tags[count+1])
-					key, value := keymap[keyid], valuemap[valueid]
-					properties[key] = value
+					keyid := feat.Tags[count]
+					valid := feat.Tags[count+1]
+					var key string
+					var val interface{}
+					if len(layer.Values) <= int(valid) {
+						key,val = layer.Keys[keyid],""
+					} else {
+						key,val = layer.Keys[keyid],layer.Values[valid]
+					}
+					properties[key] = val
+
 					count += 2
 				}
 				tempfeats := []*geojson.Feature{}
@@ -515,7 +527,7 @@ func Convert_Vt_Bytes_QA(bytevals []byte, tileid m.TileID) map[string][]*geojson
 	newmap := map[string][]*geojson.Feature{}
 	for _, layer := range tile.Layers {
 		// getting value and key map
-		valuemap, keymap := Make_Key_Value_Map(layer.Values, layer.Keys)
+		//valuemap, keymap := Make_Key_Value_Map(layer.Values, layer.Keys)
 		newfeats := []*geojson.Feature{}
 
 		// making channel
@@ -536,13 +548,21 @@ func Convert_Vt_Bytes_QA(bytevals []byte, tileid m.TileID) map[string][]*geojson
 						geom = &geojson.Geometry{Point:coords[0][0],Type:"Point"}
 					}
 				*/
+				
 				properties := map[string]interface{}{}
 				count := 0
 				for count < len(feat.Tags) {
-					keyid := int(feat.Tags[count])
-					valueid := int(feat.Tags[count+1])
-					key, value := keymap[keyid], valuemap[valueid]
-					properties[key] = value
+					keyid := feat.Tags[count]
+					valid := feat.Tags[count+1]
+					var key string
+					var val interface{}
+					if len(layer.Values) <= int(valid) {
+						key,val = layer.Keys[keyid],""
+					} else {
+						key,val = layer.Keys[keyid],layer.Values[valid]
+					}
+					properties[key] = val
+
 					count += 2
 				}
 				tempfeats := []*geojson.Feature{}
@@ -563,3 +583,11 @@ func Convert_Vt_Bytes_QA(bytevals []byte, tileid m.TileID) map[string][]*geojson
 	}
 	return newmap
 }
+
+func ReadVt(bytevals []byte) *vector_tile.Tile {
+	tile := &vector_tile.Tile{}
+	if err := proto.Unmarshal(bytevals, tile); err != nil {
+		fmt.Println(err)
+	}
+	return tile
+}	
