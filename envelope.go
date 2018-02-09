@@ -3,10 +3,10 @@ package mbutil
 import (
 	m "github.com/murphy214/mercantile"
 	"github.com/paulmach/go.geojson"
-	//"fmt"
+	"fmt"
 	"sync"
 	fm "github.com/murphy214/feature-map"
-	"fmt"
+	//"fmt"
 )
 
 // recursively drills until the max zoom is reached

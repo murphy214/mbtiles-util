@@ -513,11 +513,15 @@ func Convert_Vt_Bytes(bytevals []byte, tileid m.TileID) map[string][]*geojson.Fe
 
 // returns a list of features associated with each vector tile
 func Convert_Vt_Bytes_QA(bytevals []byte, tileid m.TileID) map[string][]*geojson.Feature {
+	if len(bytevals) == 0 {
+		return map[string][]*geojson.Feature{}
+	}
+	/*
 	bytevals,err := GUnzipData(bytevals)
 	if err != nil {
 		fmt.Println(err)
 	}
-
+	*/
 	tile := &vector_tile.Tile{}
 	if err := proto.Unmarshal(bytevals, tile); err != nil {
 		fmt.Println(err)
@@ -531,11 +535,11 @@ func Convert_Vt_Bytes_QA(bytevals []byte, tileid m.TileID) map[string][]*geojson
 		newfeats := []*geojson.Feature{}
 
 		// making channel
-		c := make(chan []*geojson.Feature)
+		//c := make(chan []*geojson.Feature)
 
 		//converting coordinates
 		for _, feat := range layer.Features {
-			go func(feat *vector_tile.Tile_Feature, c chan []*geojson.Feature) {
+			//go func(feat *vector_tile.Tile_Feature, c chan []*geojson.Feature) {
 				geoms := Decode_Geometry2(*feat.Type, feat.Geometry, converter, tileid)
 				/*
 					var geom *geojson.Geometry
@@ -565,18 +569,18 @@ func Convert_Vt_Bytes_QA(bytevals []byte, tileid m.TileID) map[string][]*geojson
 
 					count += 2
 				}
-				tempfeats := []*geojson.Feature{}
+				//tempfeats := []*geojson.Feature{}
 				for _, geom := range geoms {
-					tempfeats = append(tempfeats, &geojson.Feature{ID: feat.Id, Geometry: geom, Properties: properties})
+					newfeats = append(newfeats, &geojson.Feature{ID: feat.Id, Geometry: geom, Properties: properties})
 				}
 
-				c <- tempfeats
-			}(feat, c)
+				//c <- tempfeats
+			//}(feat, c)
 		}
 
-		for range layer.Features {
-			newfeats = append(newfeats, <-c...)
-		}
+		//for range layer.Features {
+		//	newfeats = append(newfeats, <-c...)
+		//}
 
 		newmap[*layer.Name] = newfeats
 

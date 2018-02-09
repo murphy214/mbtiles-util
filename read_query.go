@@ -44,11 +44,21 @@ func (mbtiles *Mbtiles) Query(k m.TileID) []byte {
 	var data []byte
 	err := mbtiles.Tx.QueryRow("select tile_data from tiles where zoom_level = ? and tile_column = ? and tile_row = ?",k.Z,k.X,k.Y).Scan(&data)
 	if err != nil {
-		fmt.Println(err)
+		log.Println(err)
+		data = []byte{}
 	}
 	mbtiles.Mutex.Unlock()
+	if (data[0] == 0x1f) && (data[1] == 0x8b) {
+		data,err = GUnzipData(data)
+		if err != nil {
+			log.Println(err)
+			data = []byte{}
+
+		}
+	}
 	return data
 }	
+
 
 
 // queries a given tileid
@@ -62,6 +72,12 @@ func (mbtiles *Mbtiles) Query_Features(k m.TileID) map[string][]*geojson.Feature
 		//fmt.Println(err)
 	}
 	mbtiles.Mutex.Unlock()
+	if (data[0] == 0x1f) && (data[1] == 0x8b) {
+		data,err = GUnzipData(data)
+		if err != nil {
+			fmt.Println(err)
+		}
+	}
 	return Convert_Vt_Bytes(data,og)
 }
 
@@ -86,6 +102,12 @@ func (mbtiles *Mbtiles) Map_Tiles_Get(limit int) map[m.TileID][]byte {
 		var data []byte
 
 		rows.Scan(&x,&y,&z,&data)
+		if (data[0] == 0x1f) && (data[1] == 0x8b) {
+			data,err = GUnzipData(data)
+			if err != nil {
+				fmt.Println(err)
+			}
+		}
 		y = (1 << uint64(z)) - y - 1
 		tileid := m.TileID{int64(x),int64(y),uint64(z)}
 		mymap[tileid] = data
@@ -113,6 +135,12 @@ func (mbtiles *Mbtiles) Chunk_Tiles(limit int) map[m.TileID][]byte {
 		var data []byte
 
 		rows.Scan(&x,&y,&z,&data)
+		if (data[0] == 0x1f) && (data[1] == 0x8b) {
+			data,err = GUnzipData(data)
+			if err != nil {
+				fmt.Println(err)
+			}
+		}
 		y = (1 << uint64(z)) - y - 1
 		tileid := m.TileID{int64(x),int64(y),uint64(z)}
 		mymap[tileid] = data
@@ -139,6 +167,12 @@ func (mbtiles *Mbtiles) Chunk_Tiles_Zoom(limit int,zoom int) map[m.TileID][]byte
 		var data []byte
 
 		rows.Scan(&x,&y,&z,&data)
+		if (data[0] == 0x1f) && (data[1] == 0x8b) {
+			data,err = GUnzipData(data)
+			if err != nil {
+				fmt.Println(err)
+			}
+		}
 		y = (1 << uint64(z)) - y - 1
 		tileid := m.TileID{int64(x),int64(y),uint64(z)}
 		mymap[tileid] = data
@@ -164,8 +198,14 @@ func (mbtiles *Mbtiles) Get_One_Tile() (m.TileID,[]byte) {
 	for rows.Next() {
 		var x,y,z int
 		var data []byte
-
+	
 		rows.Scan(&x,&y,&z,&data)
+		if (data[0] == 0x1f) && (data[1] == 0x8b) {
+			data,err = GUnzipData(data)
+			if err != nil {
+				fmt.Println(err)
+			}
+		}
 		y = (1 << uint64(z)) - y - 1
 		tileid := m.TileID{int64(x),int64(y),uint64(z)}
 		mymap = append(mymap,tileid)
