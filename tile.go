@@ -432,6 +432,103 @@ func (mbutil *Mbtiles) Make_Tile_Geojson(tileid m.TileID,features_str []*geojson
 		}
 	}
 }
+// makes a single tile for a given polygon
+// this function maps a geojson ld tile to a vector-tile
+func Make_Tile_Geojson2(tileid m.TileID,layername string,features_str []*geojson.Feature) []byte {
+	// getitng featuerstr
+	var bytevals []byte
+	if len(features_str) > 100000000 {
+		//fmt.Println("concurrent")
+	} else {
+
+		// intializing shit for cursor
+		bound := m.Bounds(tileid)
+		deltax := bound.E-bound.W
+		deltay := bound.N - bound.S
+
+		// random intializatioin for property collection
+		var keys []string
+		var values []*vector_tile.Tile_Value
+		keysmap := map[string]uint32{}
+		valuesmap := map[*vector_tile.Tile_Value]uint32{}
+
+		// iterating through each feature
+		features := []*vector_tile.Tile_Feature{}
+		
+		// setting and converting coordinate	
+		cur := Cursor{LastPoint:[]int32{0,0},Bounds:bound,DeltaX:deltax,DeltaY:deltay,Count:0}
+		cur = Convert_Cursor(cur)
+		var bytevals []byte
+
+		// creating new mapper
+		
+		//position := []int32{0, 0}
+		for _,i := range features_str {
+			// appplying the soft boudning box filter
+				
+				// getitng the featuer		
+		
+
+				// adding properties and getting correct tags
+				var tags, geometry []uint32
+				var feat vector_tile.Tile_Feature
+				tags, keys, values, keysmap, valuesmap = Update_Properties(i.Properties, keys, values, keysmap, valuesmap)
+				//fmt.Println(i.Geometry)
+				// logic for point feature'
+				if i.Geometry == nil {
+
+				} else if i.Geometry.Type == "Point" {
+					geometry = cur.Make_Point_Float(i.Geometry.Point)
+					feat_type := vector_tile.Tile_POINT
+					feat = vector_tile.Tile_Feature{Tags: tags, Type: &feat_type, Geometry: geometry}
+					features = append(features, &feat)
+
+				} else if i.Geometry.Type == "LineString" {
+					if len(i.Geometry.LineString) >= 2 {
+						geometry = cur.Make_Line_Float(i.Geometry.LineString)
+						if geometry[3] > 2 {
+							feat_type := vector_tile.Tile_LINESTRING
+							feat = vector_tile.Tile_Feature{Tags: tags, Type: &feat_type, Geometry: geometry}
+							features = append(features, &feat)
+						}
+
+					}
+				} else if i.Geometry.Type == "Polygon" {
+					geometry = cur.Make_Polygon_Float(i.Geometry.Polygon)
+					feat_type := vector_tile.Tile_POLYGON
+					feat = vector_tile.Tile_Feature{Tags: tags, Type: &feat_type, Geometry: geometry}
+					features = append(features, &feat)
+				}
+		}
+
+		//fmt.Println(len(features))
+		if len(features) > 0 {
+			layerVersion := uint32(15)
+			extent := vector_tile.Default_Tile_Layer_Extent
+			//var bound []Bounds
+			layer := vector_tile.Tile_Layer{
+				Version:  &layerVersion,
+				Name:     &layername,
+				Extent:   &extent,
+				Values:   values,
+				Keys:     keys,
+				Features: features,
+			}
+
+			tile := vector_tile.Tile{}
+			tile.Layers = append(tile.Layers, &layer)
+			bytevals,_ = proto.Marshal(&tile)
+			//if len(bytevals) > 0 {
+			//	mbtile.Add_Tile(tileid,bytevals)
+			//}
+		} else {
+			bytevals = []byte{}
+		}
+		if len(bytevals) > 0 { 
+		}
+	}
+	return bytevals
+}
 
 
 // makes a single tile for a given polygon
