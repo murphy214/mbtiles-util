@@ -38,7 +38,7 @@ func main() {
 			}
 
 	// layer creation / update instance created here
-	mbtile := util.Create_DB(config)
+	mbtile := util.CreateDB(config)
 
 	// adding a single tile at 0,0,0
 	mbtile.AddTile(m.TileID{0,0,0},[]byte{10,10,10})
