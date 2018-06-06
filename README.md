@@ -6,20 +6,16 @@ This project is a few commonly used patterns I use when creating or editing mbti
 
 The Add_Tile function is wrapped in a mutex as to not offend the sqlite implmentation in go that uses cgo, and single threaded therefore there is no need to worry about adding tiles in go functions becoming a problem. Layer properties could literally be considered or assumed to be any properties value from a geojson feature in your dataset.
 
-# Update: Added Query Features method 
+#### The mbutil command
 
-Today I added the Query_Features method to the main structure so now one can go:
+The mbutil command has a few functions:
 
-```golang
-feats := mbtile.Query_Features(m.TileID{4,6,4})
-```
+* ```mbutil summary --filename=x``` - prints summary data of mbtiles file.
+* ```mbutil geojson --filename=x --tile=x/y/z``` - prints the geojson string of a given tile
+* ```mbutil draw --filename=x --tile=x/y/z --res=100``` - draws and print the tile in terminal with a resolution of 100
+* ```mbutil png --filename=x --tile=x/y/z --res=100 --out=a.png``` creats a png of the drawn tile
 
-Whats awesome about this is it doesn't just return the vector_tile features within that tile it returns valid geojson with the correct geometries and properties. This feature took me exactly 2h52m43s58 to implement becaue I timed myself of course its probably really buggy as well. 
-
-
-
-
-# Example
+# Example / Usage
 
 The following example shows me creating a test.mbtiles file with the layer "Test". Then updating the test.mbtiles file with "Test2" layer, finally showing how to use the query feature as well. Nothing to crazy. 
 
@@ -45,7 +41,7 @@ func main() {
 	mbtile := util.Create_DB(config)
 
 	// adding a single tile at 0,0,0
-	mbtile.Add_Tile(m.TileID{0,0,0},[]byte{10,10,10})
+	mbtile.AddTile(m.TileID{0,0,0},[]byte{10,10,10})
 	
 	// commiting the initial layer
 	mbtile.Commit()
@@ -57,16 +53,16 @@ func main() {
 			}
 
 	// layer creation / update instance created here
-	mbtile_update := util.Update_DB(config_update)
+	mbtile_update := util.UpdateDB(config_update)
 
 	// adding a single tile at 0,0,0
-	mbtile_update.Add_Tile(m.TileID{0,0,0},[]byte{10,10,10})
+	mbtile_update.AddTile(m.TileID{0,0,0},[]byte{10,10,10})
 	
 	// commiting the updated layer
 	mbtile_update.Commit()
 
 	// loading the mbtiles file as a read instance for querying
-	mbtile = util.Read_Mbtiles("test.mbtiles")
+	mbtile = util.ReadMbtiles("test.mbtiles")
 	fmt.Println(mbtile.Query(m.TileID{0,0,0}))
 
 }
