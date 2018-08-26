@@ -5,7 +5,6 @@ import (
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	m "github.com/murphy214/mercantile"
-	"log"
 	//"os"
 	"bytes"
 	"compress/gzip"
@@ -31,15 +30,15 @@ func GUnzipData(data []byte) (resData []byte, err error) {
 }
 
 // given a filename gets a filename structure to read
-func ReadMbtiles(filename string) Mbtiles {
+func ReadMbtiles(filename string) (Mbtiles, error) {
 	db, err := sql.Open("sqlite3", filename)
 	if err != nil {
-		fmt.Println(err)
+		return Mbtiles{}, err
 	}
 	// starting the transaction for adding tiles
 	tx, err := db.Begin()
 	if err != nil {
-		log.Fatal(err)
+		return Mbtiles{}, err
 	}
 
 	var mutex sync.Mutex
@@ -51,30 +50,28 @@ func ReadMbtiles(filename string) Mbtiles {
 	minzoom, maxzoom := mb.GetMinMaxZoom()
 	mb.MinZoom = minzoom
 	mb.MaxZoom = maxzoom
-	return mb
+	return mb, nil
 
 }
 
 // queries a given tileid
-func (mbtiles *Mbtiles) Query(k m.TileID) []byte {
+func (mbtiles *Mbtiles) Query(k m.TileID) ([]byte, error) {
 	k.Y = (1 << uint64(k.Z)) - 1 - k.Y
-	//mbtiles.Mutex.Lock()
 	var data []byte
 	err := mbtiles.Tx.QueryRow("select tile_data from tiles where zoom_level = ? and tile_column = ? and tile_row = ?", k.Z, k.X, k.Y).Scan(&data)
 	if err != nil {
-		log.Println(err)
-		data = []byte{}
+		return []byte{}, err
 	}
-	//mbtiles.Mutex.Unlock()
-	if (data[0] == 0x1f) && (data[1] == 0x8b) {
-		data, err = GUnzipData(data)
-		if err != nil {
-			log.Println(err)
-			data = []byte{}
+	if len(data) >= 2 {
+		if (data[0] == 0x1f) && (data[1] == 0x8b) {
+			data, err = GUnzipData(data)
+			if err != nil {
+				return []byte{}, err
 
+			}
 		}
 	}
-	return data
+	return data, nil
 }
 
 // function for getting the next value
@@ -233,7 +230,7 @@ func (mbtiles *Mbtiles) GetOneTile() (m.TileID, []byte) {
 	}
 
 	tileid := mymap[0]
-	bytevals := mbtiles.Query(tileid)
+	bytevals, _ := mbtiles.Query(tileid)
 	mbtiles.Total += 1
 
 	return tileid, bytevals

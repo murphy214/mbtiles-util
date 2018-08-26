@@ -31,7 +31,7 @@ var pngCmd = &cobra.Command{
 	Short: "Draws a to a png at a given resolution",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		mbtile := util.ReadMbtiles(filename)
+		mbtile, _ := util.ReadMbtiles(filename)
 		var tileid m.TileID
 		if tile == "" {
 			tileid = mbtile.SingleTile()
@@ -42,7 +42,8 @@ var pngCmd = &cobra.Command{
 			resolution = 4096
 		}
 		fmt.Printf("Drawing %+v tile\n", tileid)
-		features := vt.ReadTile(mbtile.Query(tileid), tileid)
+		bytevals, _ := mbtile.Query(tileid)
+		features := vt.ReadTile(bytevals, tileid)
 		drawer.WriteFeaturesPNG(features, tileid, resolution, out)
 	},
 }

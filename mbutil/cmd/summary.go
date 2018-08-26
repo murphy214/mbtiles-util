@@ -12,7 +12,7 @@ import (
 )
 
 func CreateMetaData(filename string) {
-	mbtile := util.ReadMbtiles(filename)
+	mbtile, _ := util.ReadMbtiles(filename)
 	rows, err := mbtile.Tx.Query("SELECT name,value from metadata;")
 	if err != nil {
 		fmt.Println(err)
@@ -50,7 +50,7 @@ func WhiteSpaceMake(mystring string, size int) string {
 Prints generalized metadata to a table.
 */
 func CreateTileStats(filename string) {
-	mbtile := util.ReadMbtiles(filename)
+	mbtile, _ := util.ReadMbtiles(filename)
 	totalmap := map[int][2]int{}
 	for mbtile.Old_Total != mbtile.Total {
 		metadata := mbtile.ChunkTilesMeta(1000)

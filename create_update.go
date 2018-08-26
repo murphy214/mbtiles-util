@@ -96,7 +96,7 @@ func MakeJsonMeta(config Config, json_meta string) string {
 }
 
 // creates a mbtiles file
-func CreateDB(config Config) Mbtiles {
+func CreateDB(config Config) (Mbtiles, error) {
 	// linting maxzoom
 	if config.MaxZoom == 0 {
 		config.MaxZoom = 20
@@ -104,7 +104,7 @@ func CreateDB(config Config) Mbtiles {
 
 	db, err := sql.Open("sqlite3", config.FileName)
 	if err != nil {
-		fmt.Println(err)
+		return Mbtiles{}, err
 	}
 
 	// creating tiles table
@@ -113,7 +113,7 @@ func CreateDB(config Config) Mbtiles {
 	`
 	_, err = db.Exec(sqlStmt)
 	if err != nil {
-		log.Printf("%q: %s\n", err, sqlStmt)
+		return Mbtiles{}, err
 	}
 
 	// creating metadata table
@@ -122,7 +122,7 @@ func CreateDB(config Config) Mbtiles {
 	`
 	_, err = db.Exec(sqlStmt)
 	if err != nil {
-		log.Printf("%q: %s\n", err, sqlStmt)
+		return Mbtiles{}, err
 	}
 
 	// getting metadata and inserting into table
@@ -137,7 +137,7 @@ func CreateDB(config Config) Mbtiles {
 	// doing the transaction for meta data
 	tx, err := db.Begin()
 	if err != nil {
-		log.Fatal(err)
+		return Mbtiles{}, err
 	}
 
 	// metadata stmt
@@ -150,7 +150,7 @@ func CreateDB(config Config) Mbtiles {
 	for _, i := range values {
 		_, err = stmt.Exec(i[1], i[0])
 		if err != nil {
-			log.Fatal(err)
+			return Mbtiles{}, err
 		}
 	}
 	tx.Commit()
@@ -158,13 +158,13 @@ func CreateDB(config Config) Mbtiles {
 	// starting the transaction for adding tiles
 	tx, err = db.Begin()
 	if err != nil {
-		log.Fatal(err)
+		return Mbtiles{}, err
 	}
 
 	// creaitng stmt for tiles
 	stmt, err = tx.Prepare("insert into tiles(zoom_level, tile_column,tile_row,tile_data) values(?, ?, ?, ?)")
 	if err != nil {
-		log.Fatal(err)
+		return Mbtiles{}, err
 	}
 	var mutex sync.Mutex
 	mb := Mbtiles{Tx: tx,
@@ -178,11 +178,11 @@ func CreateDB(config Config) Mbtiles {
 		MaxZoom:   config.MaxZoom,
 		LayerName: config.LayerName,
 	}
-	return mb
+	return mb, nil
 }
 
 // updates an mbtiles file
-func UpdateDB(config Config) Mbtiles {
+func UpdateDB(config Config) (Mbtiles, error) {
 	// linting maxzoom
 	if config.MaxZoom == 0 {
 		config.MaxZoom = 20
@@ -190,7 +190,7 @@ func UpdateDB(config Config) Mbtiles {
 
 	db, err := sql.Open("sqlite3", config.FileName)
 	if err != nil {
-		fmt.Println(err)
+		return Mbtiles{}, err
 	}
 
 	// selecting metadata
@@ -201,36 +201,36 @@ func UpdateDB(config Config) Mbtiles {
 	err = db.QueryRow(sqlStmt).Scan(&jsonstring)
 
 	if err != nil {
-		log.Printf("%q: %s\n", err, sqlStmt)
+		return Mbtiles{}, err
 	}
 
 	// updating metadata
 	tx, err := db.Begin()
 	if err != nil {
-		log.Fatal(err)
+		return Mbtiles{}, err
 	}
 
 	stmt, err := db.Prepare("update metadata set value=? where name=?")
 	if err != nil {
-		log.Fatal(err)
+		return Mbtiles{}, err
 	}
 
 	_, err = stmt.Exec(MakeJsonMeta(config, jsonstring), "json")
 	if err != nil {
-		log.Fatal(err)
+		return Mbtiles{}, err
 	}
 	tx.Commit()
 
 	// starting the transaction for adding tiles
 	tx, err = db.Begin()
 	if err != nil {
-		log.Fatal(err)
+		return Mbtiles{}, err
 	}
 
 	// creaitng stmt for tiles
 	stmt, err = tx.Prepare("insert into tiles(zoom_level, tile_column,tile_row,tile_data) values(?, ?, ?, ?)")
 	if err != nil {
-		log.Fatal(err)
+		return Mbtiles{}, err
 	}
 	var mutex sync.Mutex
 	mb := Mbtiles{Tx: tx,
@@ -244,11 +244,11 @@ func UpdateDB(config Config) Mbtiles {
 		MaxZoom:   config.MaxZoom,
 		LayerName: config.LayerName,
 	}
-	return mb
+	return mb, nil
 }
 
 // adds a single tile to sqlite db
-func (mbtiles *Mbtiles) AddTile(k m.TileID, bytes []byte) {
+func (mbtiles *Mbtiles) AddTile(k m.TileID, bytes []byte) error {
 	k.Y = (1 << uint64(k.Z)) - 1 - k.Y
 	if mbtiles.NewBool == false {
 		mbtiles.Mutex.Lock()
@@ -261,14 +261,14 @@ func (mbtiles *Mbtiles) AddTile(k m.TileID, bytes []byte) {
 			mbtiles.Mutex.Lock()
 			_, err = mbtiles.Tx.Exec(`update tiles set tile_data = ? where zoom_level = ? and tile_column = ? and tile_row = ?`, bytes, k.Z, k.X, k.Y)
 			if err != nil {
-				fmt.Print(err, "\n")
+				return err
 			}
 			mbtiles.Mutex.Unlock()
 		} else {
 			mbtiles.Mutex.Lock()
 			_, err = mbtiles.Stmt.Exec(k.Z, k.X, k.Y, bytes)
 			if err != nil {
-				fmt.Println(err)
+				return err
 			}
 			mbtiles.Mutex.Unlock()
 		}
@@ -276,22 +276,23 @@ func (mbtiles *Mbtiles) AddTile(k m.TileID, bytes []byte) {
 		mbtiles.Mutex.Lock()
 		_, err := mbtiles.Stmt.Exec(k.Z, k.X, k.Y, bytes)
 		if err != nil {
-			fmt.Println(err)
+			return err
 		}
 		mbtiles.Mutex.Unlock()
 	}
-
+	return nil
 }
 
 // replaces a single tile to sqlite db
-func (mbtiles *Mbtiles) ReplaceTile(k m.TileID, bytes []byte) {
+func (mbtiles *Mbtiles) ReplaceTile(k m.TileID, bytes []byte) error {
 	k.Y = (1 << uint64(k.Z)) - 1 - k.Y
 	mbtiles.Mutex.Lock()
 	_, err := mbtiles.Tx.Exec(`update tiles set tile_data = ? where zoom_level = ? and tile_column = ? and tile_row = ?`, bytes, k.Z, k.X, k.Y)
 	if err != nil {
-		fmt.Print(err, "\n")
+		return err
 	}
 	mbtiles.Mutex.Unlock()
+	return nil
 }
 
 // getting min and maxzoom from metadata
@@ -334,16 +335,35 @@ func (mbtiles *Mbtiles) GetMinMaxZoom() (int, int) {
 }
 
 // commiting and updating index
-func (mbtiles *Mbtiles) Commit() {
+func (mbtiles *Mbtiles) Commit() error {
 	sqlStmt := `
 	CREATE UNIQUE INDEX IF NOT EXISTS tile_index on tiles (zoom_level, tile_column, tile_row)
 	`
 	_, err := mbtiles.Tx.Exec(sqlStmt)
 	if err != nil {
-		fmt.Print(err, "\n")
+		return err
 
 	}
-	mbtiles.Tx.Commit()
-	mbtiles.Stmt.Close()
 
+	err = mbtiles.Tx.Commit()
+	// reading db again
+	db, err := sql.Open("sqlite3", mbtiles.FileName)
+	if err != nil {
+		return err
+	}
+	// starting the transaction for adding tiles
+	tx, err := db.Begin()
+	if err != nil {
+		return err
+	}
+
+	// creaitng stmt for tiles
+	stmt, err := tx.Prepare("insert into tiles(zoom_level, tile_column,tile_row,tile_data) values(?, ?, ?, ?)")
+	if err != nil {
+		return err
+	}
+	mbtiles.Stmt = stmt
+	mbtiles.Tx = tx
+	//mbtiles.Stmt.Close()
+	return err
 }

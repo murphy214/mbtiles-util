@@ -21,15 +21,15 @@ var geojsonCmd = &cobra.Command{
 	Short: "Prints a geojson string for a given tile.",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		mbtile := util.ReadMbtiles(filename)
+		mbtile, _ := util.ReadMbtiles(filename)
 		var tileid m.TileID
 		if tile == "" {
 			tileid = mbtile.SingleTile()
 		} else {
 			tileid = m.Strtile(tile)
 		}
-
-		fc := &geojson.FeatureCollection{Features: vt.ReadTile(mbtile.Query(tileid), tileid)}
+		bytevals, _ := mbtile.Query(tileid)
+		fc := &geojson.FeatureCollection{Features: vt.ReadTile(bytevals, tileid)}
 		bytevals, err := fc.MarshalJSON()
 		if err != nil {
 			fmt.Println(err)
