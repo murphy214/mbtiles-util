@@ -29,7 +29,8 @@ var geojsonCmd = &cobra.Command{
 			tileid = m.Strtile(tile)
 		}
 		bytevals, _ := mbtile.Query(tileid)
-		fc := &geojson.FeatureCollection{Features: vt.ReadTile(bytevals, tileid)}
+		features, _ := vt.ReadTile(bytevals, tileid)
+		fc := &geojson.FeatureCollection{Features: features}
 		bytevals, err := fc.MarshalJSON()
 		if err != nil {
 			fmt.Println(err)

@@ -9,9 +9,7 @@ import "github.com/spf13/viper"
 var filename string
 
 func init() {
-	//rootCmd.PersistentFlags().StringVar(&filename, "filename", "your filename", "Author name for copyright attribution")
-	//viper.BindPFlag("filename", rootCmd.PersistentFlags().Lookup("filename"))
-	rootCmd.PersistentFlags().StringVar(&filename, "filename", "your filename", "Author name for copyright attribution")
+	rootCmd.PersistentFlags().StringVarP(&filename, "filename", "f", "your filename", "Author name for copyright attribution")
 	viper.BindPFlag("filename", rootCmd.PersistentFlags().Lookup("filename"))
 
 }

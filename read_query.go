@@ -79,6 +79,13 @@ func (mbtiles *Mbtiles) Next() bool {
 	return (mbtiles.Old_Total == mbtiles.Total) == false
 }
 
+//
+func (mbtiles *Mbtiles) GetMax() int {
+	var myint int
+	_ = mbtiles.Tx.QueryRow("SELECT COUNT(*) from tiles;").Scan(&myint)
+	return myint
+}
+
 // map query
 func (mbtiles *Mbtiles) MapTilesGet(limit int) map[m.TileID][]byte {
 	rows, err := mbtiles.Tx.Query("SELECT tile_column,tile_row,zoom_level,tile_data FROM tiles limit ?,?", mbtiles.Total, limit)

@@ -16,9 +16,9 @@ var resolution int
 
 func init() {
 	rootCmd.AddCommand(drawCmd)
-	rootCmd.PersistentFlags().StringVar(&tile, "tile", "", "X/Y/Z TILE")
+	rootCmd.PersistentFlags().StringVarP(&tile, "tile", "t", "", "X/Y/Z TILE")
 	viper.BindPFlag("tile", rootCmd.PersistentFlags().Lookup("tile"))
-	rootCmd.PersistentFlags().IntVar(&resolution, "res", 100, "Resolution of tile")
+	rootCmd.PersistentFlags().IntVarP(&resolution, "res", "r", 100, "Resolution of tile")
 	viper.BindPFlag("res", rootCmd.PersistentFlags().Lookup("res"))
 }
 
@@ -36,7 +36,7 @@ var drawCmd = &cobra.Command{
 		}
 		fmt.Printf("Drawing %+v tile\n", tileid)
 		bytevals, _ := mbtile.Query(tileid)
-		features := vt.ReadTile(bytevals, tileid)
+		features, _ := vt.ReadTile(bytevals, tileid)
 		screen := drawer.NewGrid(tileid, resolution)
 		screen.PaintFeatures(features)
 		screen.Screen.Draw()

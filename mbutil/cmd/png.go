@@ -43,7 +43,7 @@ var pngCmd = &cobra.Command{
 		}
 		fmt.Printf("Drawing %+v tile\n", tileid)
 		bytevals, _ := mbtile.Query(tileid)
-		features := vt.ReadTile(bytevals, tileid)
+		features, _ := vt.ReadTile(bytevals, tileid)
 		drawer.WriteFeaturesPNG(features, tileid, resolution, out)
 	},
 }
