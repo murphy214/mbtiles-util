@@ -106,3 +106,24 @@ func (img *Image_Mask) Write() []byte {
 	}
 	return a.Bytes()
 }
+
+func (img *Image_Mask) WriteMask() []byte {
+	im := image.NewGray(image.Rectangle{Max: image.Point{X: img.X, Y: img.X}})
+
+	for _, pixels := range img.Pixels {
+		for _, k := range pixels {
+			im.SetGray(k[0], k[1], color.Gray{uint8(255)})
+		}
+	}
+
+	c := color.Gray{uint8(1)}
+	for _, k := range img.Line_Pixels {
+		im.SetGray(k[0], k[1], c)
+	}
+
+	a := bytes.NewBuffer([]byte{})
+	if err := png.Encode(a, im); err != nil {
+		log.Fatal(err)
+	}
+	return a.Bytes()
+}
