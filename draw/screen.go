@@ -112,15 +112,39 @@ func (img *Image_Mask) WriteMask() []byte {
 
 	for _, pixels := range img.Pixels {
 		for _, k := range pixels {
-			im.SetGray(k[0], k[1], color.Gray{uint8(255)})
+
+			// adding two iterations of dialtion
+			/*
+
+				TO DO:
+				This is really a hack and dialation should be handled in a more cohesive manner.
+
+				CURRENTLY:
+
+				X  X  X  X  X
+				X  X  X  X  X
+				X  X  O  X  X
+				X  X  X  X  X
+				X  X  X  X  X
+
+				WHERE O is the subject point
+			*/
+			gridpt1 := [2]int{k[0] - 3, k[1] - 3}
+			gridpt2 := [2]int{k[0] + 3, k[1] + 3}
+			for currentx := gridpt1[0]; currentx < gridpt2[0]; currentx++ {
+				for currenty := gridpt1[1]; currenty < gridpt2[1]; currenty++ {
+					im.SetGray(currentx, currenty, color.Gray{uint8(255)})
+				}
+			}
+			//im.SetGray(k[0], k[1], color.Gray{uint8(255)})
 		}
 	}
-
-	c := color.Gray{uint8(1)}
-	for _, k := range img.Line_Pixels {
-		im.SetGray(k[0], k[1], c)
-	}
-
+	/*
+		c := color.Gray{uint8(1)}
+		for _, k := range img.Line_Pixels {
+			im.SetGray(k[0], k[1], c)
+		}
+	*/
 	a := bytes.NewBuffer([]byte{})
 	if err := png.Encode(a, im); err != nil {
 		log.Fatal(err)

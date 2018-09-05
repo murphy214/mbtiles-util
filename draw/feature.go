@@ -186,3 +186,20 @@ func WriteFeaturesMaskPNG(features []*geojson.Feature, tileid m.TileID, res int,
 	bytevals := img.WriteMask()
 	ioutil.WriteFile(filename, bytevals, 0677)
 }
+
+func WriteFeaturesMaskPNGRaw(features []*geojson.Feature, tileid m.TileID, res int) []byte {
+	img := NewImg(res, res)
+
+	grid := NewGrid(tileid, res)
+
+	for _, feature := range features {
+		pixels, bdr := grid.DrawFeature(feature)
+		//pixels, bdr = AbsPixels(pixels, res), AbsPixels(bdr, res)
+		img.Pixels = append(img.Pixels, pixels)
+		img.Line_Pixels = append(img.Line_Pixels, bdr...)
+	}
+	//fmt.Println(img)
+
+	bytevals := img.WriteMask()
+	return bytevals
+}
