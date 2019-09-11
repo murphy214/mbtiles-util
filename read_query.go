@@ -13,6 +13,17 @@ import (
 	"sync"
 )
 
+// unzips a write
+func GZipWrite(bs []byte) []byte {
+	var b bytes.Buffer
+	w := gzip.NewWriter(&b)
+	w.Write(bs)
+	w.Flush()
+	w.Close() // You must close this first to flush the bytes to the buffer.
+	return b.Bytes()
+}
+
+
 func GUnzipData(data []byte) (resData []byte, err error) {
 	b := bytes.NewBuffer(data)
 	var r io.Reader
@@ -62,6 +73,7 @@ func (mbtiles *Mbtiles) Query(k m.TileID) ([]byte, error) {
 	if err != nil {
 		return []byte{}, err
 	}
+	
 	if len(data) >= 2 {
 		if (data[0] == 0x1f) && (data[1] == 0x8b) {
 			data, err = GUnzipData(data)

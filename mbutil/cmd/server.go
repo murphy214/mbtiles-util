@@ -25,6 +25,8 @@ func Server(gvt util.Mbtiles, port int) {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		mm.Lock()
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Content-Type", "application/x-protobuf")
+
 		vals := strings.Split(r.URL.Path, "/")
 
 		if len(vals) == 4 {
@@ -37,7 +39,7 @@ func Server(gvt util.Mbtiles, port int) {
 			s := time.Now()
 			data, _ := gvt.Query(m.TileID{xnew, ynew, uint64(znew)})
 			fmt.Fprintf(w, "%s", string(data))
-			fmt.Printf("Tile: %s | Time: %v\n", x+"/"+y+"/"+z, time.Now().Sub(s))
+			fmt.Printf("Tile: %s | Time: %v Size:%d\n", x+"/"+y+"/"+z, time.Now().Sub(s),len(data))
 
 		} else {
 			fmt.Fprintf(w, "%s", string(bs))
