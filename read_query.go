@@ -86,6 +86,18 @@ func (mbtiles *Mbtiles) Query(k m.TileID) ([]byte, error) {
 	return data, nil
 }
 
+// queries a given tileid
+func (mbtiles *Mbtiles) QueryRaw(k m.TileID) ([]byte, error) {
+	k.Y = (1 << uint64(k.Z)) - 1 - k.Y
+	var data []byte
+	err := mbtiles.Tx.QueryRow("select tile_data from tiles where zoom_level = ? and tile_column = ? and tile_row = ?", k.Z, k.X, k.Y).Scan(&data)
+	if err != nil {
+		return []byte{}, err
+	}
+	
+	return data, nil
+}
+
 // function for getting the next value
 func (mbtiles *Mbtiles) Next() bool {
 	return (mbtiles.Old_Total == mbtiles.Total) == false
