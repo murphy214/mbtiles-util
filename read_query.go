@@ -86,6 +86,29 @@ func (mbtiles *Mbtiles) Query(k m.TileID) ([]byte, error) {
 	return data, nil
 }
 
+
+// queries a given tileid returns an image
+func (mbtiles *Mbtiles) QueryImage(k m.TileID) ([]byte, error) {
+	k.Y = (1 << uint64(k.Z)) - 1 - k.Y
+	var data []byte
+	tileid := fmt.Sprintf("%d/%d/%d",k.Z,k.X,k.Y)
+	err := mbtiles.Tx.QueryRow("select tile_data from images where tileid=?", tileid).Scan(&data)
+	if err != nil {
+		return []byte{}, err
+	}
+	
+	if len(data) >= 2 {
+		if (data[0] == 0x1f) && (data[1] == 0x8b) {
+			data, err = GUnzipData(data)
+			if err != nil {
+				return []byte{}, err
+
+			}
+		}
+	}
+	return data, nil
+}
+
 // queries a given tileid
 func (mbtiles *Mbtiles) QueryRaw(k m.TileID) ([]byte, error) {
 	k.Y = (1 << uint64(k.Z)) - 1 - k.Y
