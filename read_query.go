@@ -5,13 +5,24 @@ import (
 	"fmt"
 	_ "github.com/mattn/go-sqlite3"
 	m "github.com/murphy214/mercantile"
-	//"os"
 	"bytes"
 	"compress/gzip"
 	//"github.com/paulmach/go.geojson"
 	"io"
+	"os"
 	"sync"
 )
+
+// gets filesize 
+func GetFileSize(filename string) int {
+	fi, err := os.Stat(filename)
+	if err != nil {
+		fmt.Println(err)
+	}
+	// get the size
+	size := fi.Size()
+	return int(size)
+}
 
 // unzips a write
 func GZipWrite(bs []byte) []byte {
