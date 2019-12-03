@@ -61,6 +61,7 @@ func ReadMbtiles(filename string) (Mbtiles, error) {
 	minzoom, maxzoom := mb.GetMinMaxZoom()
 	mb.MinZoom = minzoom
 	mb.MaxZoom = maxzoom
+	mb.CheckGZip()
 	return mb, nil
 
 }

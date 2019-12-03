@@ -39,6 +39,7 @@ type Mbtiles struct {
 	FileName  string
 	MinZoom   int
 	MaxZoom   int
+	Gzipped   bool
 }
 
 // configuration structure
@@ -244,6 +245,7 @@ func UpdateDB(config Config) (Mbtiles, error) {
 		MaxZoom:   config.MaxZoom,
 		LayerName: config.LayerName,
 	}
+	mb.CheckGZip()
 	return mb, nil
 }
 
@@ -351,6 +353,12 @@ func (mbtiles *Mbtiles) Commit() error {
 	if err != nil {
 		return err
 	}
+
+	_,err = db.Exec("VACUUM;")
+	if err != nil {
+		return err
+	}
+
 	// starting the transaction for adding tiles
 	tx, err := db.Begin()
 	if err != nil {
@@ -366,4 +374,19 @@ func (mbtiles *Mbtiles) Commit() error {
 	mbtiles.Tx = tx
 	//mbtiles.Stmt.Close()
 	return err
+}
+
+
+// adds a single tile to sqlite db
+func (mbtiles *Mbtiles) CheckGZip() {
+	tile,_ := mbtiles.GetOneTile()
+	data,err := mbtiles.QueryRaw(tile)
+	if err != nil {
+		fmt.Println(err)
+	}
+	if len(data) > 0 {
+		mbtiles.Gzipped = (data[0] == 0x1f) && (data[1] == 0x8b)
+	} else {
+		fmt.Println("first tile size equal to zero")
+	}
 }
