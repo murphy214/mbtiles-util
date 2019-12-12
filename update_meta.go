@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"bytes"
 	"encoding/json"
+	"database/sql"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 
@@ -129,4 +131,32 @@ func GZipAll(mbfilename string) {
 	if err != nil {
 		fmt.Println(err)
 	}
+}
+
+
+func FixViewToTable(filename string) {
+	db, err := sql.Open("sqlite3", filename)
+	if err != nil {
+		fmt.Println(err)
+
+	}
+
+	_, err = db.Exec(`CREATE TABLE tiles2 AS select * from tiles;`)
+	if err != nil {
+		fmt.Println(err)
+	}
+	_, err = db.Exec(`DROP VIEW tiles;`)
+	if err != nil {
+		fmt.Println(err)
+	}
+	_, err = db.Exec("ALTER TABLE `tiles2` RENAME TO `tiles`;")
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	mbtiles,err := ReadMbtiles(filename)
+	if err != nil {
+		fmt.Println(err)
+	}
+	mbtiles.Commit()
 }
