@@ -23,8 +23,9 @@ func UpdateMetaDataJSON(mbfilename string) {
 		fmt.Println(err)
 	}
 	mymap := map[string]Vector_Layer{}
-
-	for _,tile := range mbtiles.GetAllTiles() {
+	tiles := mbtiles.GetAllTiles()
+	sizetiles := len(tiles)
+	for pos,tile := range tiles {
 		myzoom := int(tile.Z)
 		bs,err := mbtiles.Query(tile)
 		if err != nil {
@@ -49,6 +50,9 @@ func UpdateMetaDataJSON(mbfilename string) {
 				}
 				mymap[layername] = vector_layer
 			}
+		}
+		if pos%1000==0 {
+			fmt.Printf("\r[%d/%d]",pos,sizetiles)			
 		}
 	}
 	layers := []Vector_Layer{}
