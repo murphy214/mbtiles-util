@@ -343,8 +343,7 @@ func (mbtiles *Mbtiles) Commit() error {
 	`
 	_, err := mbtiles.Tx.Exec(sqlStmt)
 	if err != nil {
-		return err
-
+		fmt.Println(err)
 	}
 
 	err = mbtiles.Tx.Commit()
