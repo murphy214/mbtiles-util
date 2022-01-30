@@ -377,3 +377,19 @@ func (mbtiles *Mbtiles) GetAllTilesSorted() []m.TileID {
 	}
 	return mymap
 }
+
+
+// reads in the metadata as map[string]string
+func (mbtiles *Mbtiles) GetMetaData() map[string]string {
+	rows, err := mbtiles.Tx.Query("SELECT name,value from metadata;")
+	if err != nil {
+		fmt.Println(err)
+	}
+	metadata := map[string]string{}
+	for rows.Next() {
+		var val1, val2 string
+		rows.Scan(&val1, &val2)
+		metadata[val1] = val2 
+	}
+	return metadata
+}

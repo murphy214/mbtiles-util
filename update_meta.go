@@ -16,12 +16,7 @@ func prettyprint(b []byte) ([]byte, error) {
 	return out.Bytes(), err
 }
 
-func UpdateMetaDataKV(mbfilename,key,value string) bool {
-	mbtiles,err := ReadMbtiles(mbfilename)
-	if err != nil {
-		fmt.Println(err)
-	}
-
+func (mbtiles *Mbtiles) UpdateMetaDataKV(key,value string) bool {
 	stmt, err := mbtiles.Tx.Prepare("update metadata set value = ? where name = ?;")
 
 	result, err := stmt.Exec(string(value),string(key))
@@ -42,7 +37,34 @@ func UpdateMetaDataKV(mbfilename,key,value string) bool {
 	if err != nil {
 		fmt.Println(err)
 	}
+	db, err := sql.Open("sqlite3", mbtiles.FileName)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	tx, err := db.Begin()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	// creaitng stmt for tiles
+	stmt, err = tx.Prepare("insert into tiles(zoom_level, tile_column,tile_row,tile_data) values(?, ?, ?, ?)")
+	if err != nil {
+		fmt.Println(err)
+	}
+	mbtiles.Stmt = stmt
+	mbtiles.Tx = tx
+
 	return err == nil
+
+}
+
+func UpdateMetaDataKV(mbfilename,key,value string) bool {
+	mbtiles,err := ReadMbtiles(mbfilename)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return mbtiles.UpdateMetaDataKV(key,value)
 }
 
 // updates the underlyig metadata of a json field
