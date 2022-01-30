@@ -10,6 +10,7 @@ func init() {
 	rootCmd.AddCommand(updateMeta)
 	//rootCmd.PersistentFlags().StringVar(&tile, "tile", "0/0/0", "X/Y/Z TILE")
 	//viper.BindPFlag("tile", rootCmd.PersistentFlags().Lookup("tile"))
+
 }
 
 var updateMeta = &cobra.Command{
@@ -22,6 +23,16 @@ var updateMeta = &cobra.Command{
 				filename = args[0]
 			}
 		}
-		util.UpdateMetaDataJSON(filename)	
+
+		if len(args) == 1 && len(keyvalue) == 1 {
+			keyvalue = append(keyvalue,args[0])
+		}
+
+		if len(keyvalue) == 2 {
+			util.UpdateMetaDataKV(filename,keyvalue[0],keyvalue[1])
+		} else {
+			util.UpdateMetaDataJSON(filename)	
+		}
+
 	},
 }

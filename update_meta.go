@@ -16,6 +16,35 @@ func prettyprint(b []byte) ([]byte, error) {
 	return out.Bytes(), err
 }
 
+func UpdateMetaDataKV(mbfilename,key,value string) bool {
+	mbtiles,err := ReadMbtiles(mbfilename)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	stmt, err := mbtiles.Tx.Prepare("update metadata set value = ? where name = ?;")
+
+	result, err := stmt.Exec(string(value),string(key))
+	effected,_  := result.RowsAffected()
+	if effected == 0 {
+		stmt, err := mbtiles.Tx.Prepare("insert into metadata(name, value) values(?, ?)")
+		if err != nil {
+			fmt.Println(err)
+		}
+		_, err = stmt.Exec(key,value)
+	}
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	err = mbtiles.Tx.Commit()
+	if err != nil {
+		fmt.Println(err)
+	}
+	return err == nil
+}
+
 // updates the underlyig metadata of a json field
 func UpdateMetaDataJSON(mbfilename string) {
 	mbtiles,err := ReadMbtiles(mbfilename)
