@@ -23,14 +23,23 @@ func GetFileSize(filename string) int {
 	size := fi.Size()
 	return int(size)
 }
-
 // unzips a write
 func GZipWrite(bs []byte) []byte {
 	var b bytes.Buffer
 	w := gzip.NewWriter(&b)
-	w.Write(bs)
-	w.Flush()
-	w.Close() // You must close this first to flush the bytes to the buffer.
+	_,err := w.Write(bs)
+	if err != nil {
+		fmt.Println(err)
+	}
+	err = w.Flush()
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	err = w.Close() // You must close this first to flush the bytes to the buffer.
+	if err != nil {
+		fmt.Println(err)
+	}
 	return b.Bytes()
 }
 
