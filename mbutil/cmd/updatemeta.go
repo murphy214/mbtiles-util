@@ -16,7 +16,12 @@ func init() {
 var updateMeta = &cobra.Command{
 	Use:   "updatemeta",
 	Short: "Updates underlying metadata of a tile.",
-	Long:  ``,
+	Long:  `
+	Updates a metadata table value (k/v store) 
+
+	Usage Example: 
+	mbutil updatemeta -f here.mbtiles --key-value-update mykey myvalue 
+	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(filename) == 0 {
 			if len(args) > 0 {

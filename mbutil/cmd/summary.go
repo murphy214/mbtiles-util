@@ -108,7 +108,12 @@ func init() {
 var summaryCmd = &cobra.Command{
 	Use:   "summary",
 	Short: "Prints Summary Statistics in a table.",
-	Long:  ``,
+	Long:  `
+	Prints summary of metadata: 
+
+	Usage Example:
+	mbutil summary -f ~/go_files/lrs_data/wv_roads12.mbtiles
+	`,
 	Run: func(cmd *cobra.Command, args []string) {
 		CreateMetaData(filename)
 		CreateTileStats(filename)
